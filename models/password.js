@@ -10,6 +10,10 @@ const forgotPasswordSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
   },
+  creator: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
 });
 
 const ForgotPassword = mongoose.model("ForgotPassword", forgotPasswordSchema);

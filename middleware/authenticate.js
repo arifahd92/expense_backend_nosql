@@ -7,11 +7,11 @@ const findId = async (req, res, next) => {
       "find id middleware inside authenticate*************************************8"
     );
     const token = req.headers.authorization;
-    console.log({ token });
+    console.log('generated token',{ token });
     const decodeToken = jwt.verify(token, secretKey);
     const user = await User.findById(decodeToken.id);
 
-    console.log({ decodeToken });
+   // console.log({ decodeToken });
     req.userId = decodeToken.id;
     req.userEmail = decodeToken.email;
     req.user = user;

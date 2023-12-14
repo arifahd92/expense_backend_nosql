@@ -6,6 +6,10 @@ const orderSchema = new mongoose.Schema({
   },
   status: String,
   paymentid: String,
+  creator: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
 });
 
 const Order = mongoose.model("Order", orderSchema);

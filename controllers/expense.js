@@ -3,6 +3,7 @@ const Expense = require("../models/expense");
 const User = require("../models/user");
 
 //m- post=>add-expense
+/*
 const addExpense = async (req, res) => {
   console.log("add expense controller");
   const t = await sequelize.transaction();
@@ -55,8 +56,73 @@ const addExpense = async (req, res) => {
     res.json({ error: "some thing went wrong" });
   }
 };
+*/
+const addExpense = async (req, res) => {
+  console.log("add expense controller");
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const userId = req.userId;
+    const { amount, category } = req.body;
+    const input = req.body;
+    const prevTotal = req.user.totalExpenseAmount;
+    const currentTotal = +prevTotal + +amount;
+
+    if (category == "Movie") {
+      const prevAmount = req.user.totalMovieExpense;
+      const total = prevAmount + +amount;
+
+      req.user.totalMovieExpense = total;
+      req.user.totalExpenseAmount = currentTotal;
+
+      await req.user.save({ session });
+    } else if (category == "Shopping") {
+      const prevAmount = req.user.totalShoppingExpense;
+      const total = prevAmount + +amount;
+
+      req.user.totalShoppingExpense = total;
+      req.user.totalExpenseAmount = currentTotal;
+
+      await req.user.save({ session });
+    } else if (category == "Grocery") {
+      const prevAmount = req.user.totalGroceryExpense;
+      const total = prevAmount + +amount;
+
+      req.user.totalGroceryExpense = total;
+      req.user.totalExpenseAmount = currentTotal;
+
+      await req.user.save({ session });
+    } else if (category == "Rent") {
+      const prevAmount = req.user.totalRentExpense;
+      const total = prevAmount + +amount;
+
+      req.user.totalRentExpense = total;
+      req.user.totalExpenseAmount = currentTotal;
+
+      await req.user.save({ session });
+    }
+
+    const createdData = await Expense.create([{ ...input, userId }], { session });
+    console.log("added");
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.send(createdData);
+  } catch (error) {
+    console.error(error);
+    await session.abortTransaction();
+    session.endSession();
+
+    res.status(500).json({ error: "Something went wrong" });
+  }
+};
+
 
 // m-get => get-expense
+/*
+
 const getExpense = async (req, res) => {
   const page = parseInt(req.query.page);
   const pageSize = parseInt(req.query.pageSize);
@@ -93,8 +159,38 @@ const getExpense = async (req, res) => {
     res.status(500).json({ error: "Something went wrong in getting data" });
   }
 };
+*/
+const getExpense = async (req, res) => {
+  const page = parseInt(req.query.page);
+  const pageSize = parseInt(req.query.pageSize);
+  const skip = page * pageSize;
+
+  try {
+    console.log("getExpense controller");
+    const userId = req.userId;
+    const totalRecords = await Expense.countDocuments({ userId });
+
+    const premium = req.user.premium;
+    console.log({ userId, page, pageSize, totalRecords });
+
+    const expenses = await Expense.find({ userId })
+      .skip(skip)
+      .limit(pageSize);
+
+    res.json({
+      data: expenses,
+      premium: premium,
+      total: req.user.totalExpenseAmount,
+      totalRecords,
+    });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ error: "Something went wrong in getting data" });
+  }
+};
 
 //m-delete =>delete-expense/:expenseId
+/*
 const deleteExpense = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -153,7 +249,64 @@ const deleteExpense = async (req, res) => {
     res.send({ error: error.message });
   }
 };
+*/
+const deleteExpense = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { expenseId } = req.params;
+    const expense = await Expense.findOne({ _id: expenseId });
+
+    const prevTotal = req.user.totalExpenseAmount;
+    const amount = expense.amount; // that is being deleted
+    const totalAmount = +prevTotal - +amount;
+    const category = expense.category;
+
+    console.log("**************************************************************************************************");
+    console.log({ category });
+
+    if (category == "Movie") {
+      const prevAmount = req.user.totalMovieExpense;
+      const total = prevAmount - expense.amount;
+      req.user.totalMovieExpense = total;
+      req.user.totalExpenseAmount = totalAmount;
+    } else if (category == "Shopping") {
+      console.log("delete shopping");
+      const prevAmount = req.user.totalShoppingExpense;
+      const total = prevAmount - expense.amount;
+      req.user.totalShoppingExpense = total;
+      req.user.totalExpenseAmount = totalAmount;
+    } else if (category == "Grocery") {
+      const prevAmount = req.user.totalGroceryExpense;
+      const total = prevAmount - expense.amount;
+      req.user.totalGroceryExpense = total;
+      req.user.totalExpenseAmount = totalAmount;
+    } else if (category == "Rent") {
+      const prevAmount = req.user.totalRentExpense;
+      const total = prevAmount - expense.amount;
+      req.user.totalRentExpense = total;
+      req.user.totalExpenseAmount = totalAmount;
+    }
+
+    await req.user.save({ session });
+    const deletedData = await Expense.deleteOne({ _id: expenseId }, { session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.send({ message: "success" });
+  } catch (error) {
+    console.error(error.message);
+    await session.abortTransaction();
+    session.endSession();
+    
+    res.status(500).json({ error: error.message });
+  }
+};
+
 //m-put =>update-expense/:expenseId
+/*
 const updateExpense = async (req, res) => {
   console.log("update expense contyroller");
   const t = await sequelize.transaction();
@@ -229,4 +382,72 @@ const updateExpense = async (req, res) => {
     res.send({ error: error.message });
   }
 };
+*/
+const updateExpense = async (req, res) => {
+  console.log("update expense controller");
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const expenseId = req.params.expenseId;
+    console.log({ expenseId });
+    const updatedData = req.body;
+    const { amount: newAmount } = req.body; //7
+    const expense = await Expense.findById(expenseId);
+    const prevAmount = expense.amount; //say 5
+    const difference = +newAmount - prevAmount; //it will be used in category total
+
+    const updatedTotal = req.user.totalExpenseAmount + +difference;
+    const category = expense.category;
+    console.log("**************************************************************************************************");
+    console.log({ category });
+
+    if (category == "Movie") {
+      const prevAmount = req.user.totalMovieExpense;
+      const total = prevAmount + +difference;
+      req.user.totalMovieExpense = total;
+      req.user.totalExpenseAmount = updatedTotal;
+    } else if (category == "Shopping") {
+      console.log("update shopping");
+      const prevAmount = req.user.totalShoppingExpense;
+      const total = prevAmount + +difference;
+      req.user.totalShoppingExpense = total;
+      req.user.totalExpenseAmount = updatedTotal;
+    } else if (category == "Grocery") {
+      const prevAmount = req.user.totalGroceryExpense;
+      const total = prevAmount + +difference;
+      req.user.totalGroceryExpense = total;
+      req.user.totalExpenseAmount = updatedTotal;
+    } else if (category == "Rent") {
+      const prevAmount = req.user.totalRentExpense;
+      const total = prevAmount + +difference;
+      req.user.totalRentExpense = total;
+      req.user.totalExpenseAmount = updatedTotal;
+    }
+
+    await req.user.save({ session });
+
+    const updatedExpense = await Expense.findByIdAndUpdate(
+      expenseId,
+      updatedData,
+      { new: true, session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    if (!updatedExpense) {
+      res.status(404).send({ error: "Expense not found" });
+    } else {
+      res.send({ message: "success" });
+    }
+  } catch (error) {
+    console.error(error.message);
+    await session.abortTransaction();
+    session.endSession();
+
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = { addExpense, getExpense, deleteExpense, updateExpense };

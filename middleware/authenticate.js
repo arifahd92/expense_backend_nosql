@@ -8,6 +8,7 @@ const findId = async (req, res, next) => {
     );
     const token = req.headers.authorization;
     console.log('generated token',{ token });
+    console.log({secretKey})
     const decodeToken = jwt.verify(token, secretKey);
     const user = await User.findById(decodeToken.id);
 

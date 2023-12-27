@@ -1,7 +1,7 @@
 const sequelize = require("../db/connection");
 const Expense = require("../models/expense");
 const User = require("../models/user");
-
+const mongoose = require('mongoose')
 //m- post=>add-expense
 /*
 const addExpense = async (req, res) => {
@@ -66,50 +66,36 @@ const addExpense = async (req, res) => {
     const userId = req.userId;
     const { amount, category } = req.body;
     const input = req.body;
-    const prevTotal = req.user.totalExpenseAmount;
-    const currentTotal = +prevTotal + +amount;
 
+    // Create the expense document
+    const createdData = await Expense.create([{ ...input, creator: userId }], { session });
+
+    // Update user's category expense
     if (category == "Movie") {
-      const prevAmount = req.user.totalMovieExpense;
-      const total = prevAmount + +amount;
-
-      req.user.totalMovieExpense = total;
-      req.user.totalExpenseAmount = currentTotal;
-
-      await req.user.save({ session });
+      req.user.totalMovieExpense += +amount;
     } else if (category == "Shopping") {
-      const prevAmount = req.user.totalShoppingExpense;
-      const total = prevAmount + +amount;
-
-      req.user.totalShoppingExpense = total;
-      req.user.totalExpenseAmount = currentTotal;
-
-      await req.user.save({ session });
-    } else if (category == "Grocery") {
-      const prevAmount = req.user.totalGroceryExpense;
-      const total = prevAmount + +amount;
-
-      req.user.totalGroceryExpense = total;
-      req.user.totalExpenseAmount = currentTotal;
-
-      await req.user.save({ session });
+      req.user.totalShoppingExpense += +amount;
+    } else if (category == "Groccery") {
+      req.user.totalGrocceryExpense += +amount;
     } else if (category == "Rent") {
-      const prevAmount = req.user.totalRentExpense;
-      const total = prevAmount + +amount;
-
-      req.user.totalRentExpense = total;
-      req.user.totalExpenseAmount = currentTotal;
-
-      await req.user.save({ session });
+      req.user.totalRentExpense += +amount;
     }
 
-    const createdData = await Expense.create([{ ...input, userId }], { session });
+    // Update total expense amount
+    req.user.totalExpenseAmount += +amount;
+
+    // Push the created expense ID to the user's expenses array
+    req.user.expenses.push(createdData[0]._id);
+
+    // Save the user document
+    await req.user.save({ session });
+
     console.log("added");
 
     await session.commitTransaction();
     session.endSession();
 
-    res.send(createdData);
+    res.send(createdData[0]);// it was retutrning array of 1 object so i sent object only
   } catch (error) {
     console.error(error);
     await session.abortTransaction();
@@ -173,7 +159,9 @@ const getExpense = async (req, res) => {
     const premium = req.user.premium;
     console.log({ userId, page, pageSize, totalRecords });
 
-    const expenses = await Expense.find({ userId })
+    //const expenses = await Expense.find({ userId })
+    const expenses = await Expense.find({ creator: userId }).populate('creator')
+
       .skip(skip)
       .limit(pageSize);
 
@@ -250,6 +238,7 @@ const deleteExpense = async (req, res) => {
   }
 };
 */
+/*
 const deleteExpense = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -277,10 +266,10 @@ const deleteExpense = async (req, res) => {
       const total = prevAmount - expense.amount;
       req.user.totalShoppingExpense = total;
       req.user.totalExpenseAmount = totalAmount;
-    } else if (category == "Grocery") {
-      const prevAmount = req.user.totalGroceryExpense;
+    } else if (category == "Groccery") {
+      const prevAmount = req.user.totalGrocceryExpense;
       const total = prevAmount - expense.amount;
-      req.user.totalGroceryExpense = total;
+      req.user.totalGrocceryExpense = total;
       req.user.totalExpenseAmount = totalAmount;
     } else if (category == "Rent") {
       const prevAmount = req.user.totalRentExpense;
@@ -300,10 +289,75 @@ const deleteExpense = async (req, res) => {
     console.error(error.message);
     await session.abortTransaction();
     session.endSession();
-    
+    console.log(error)
     res.status(500).json({ error: error.message });
   }
 };
+*/
+const deleteExpense = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { expenseId } = req.params;
+
+    // Use session when querying the expense
+    const expense = await Expense.findOne({ _id: expenseId }).session(session);
+
+    const prevTotal = req.user.totalExpenseAmount;
+    const amount = expense.amount; // amount being deleted
+    const totalAmount = +prevTotal - +amount;
+    const category = expense.category;
+
+    console.log("**************************************************************************************************");
+    console.log({ category });
+
+    if (category == "Movie") {
+      const prevAmount = req.user.totalMovieExpense;
+      const total = prevAmount - amount;
+      req.user.totalMovieExpense = total;
+      req.user.totalExpenseAmount = totalAmount;
+    } else if (category == "Shopping") {
+      console.log("delete shopping");
+      const prevAmount = req.user.totalShoppingExpense;
+      const total = prevAmount - amount;
+      req.user.totalShoppingExpense = total;
+      req.user.totalExpenseAmount = totalAmount;
+    } else if (category == "Groccery") {
+      const prevAmount = req.user.totalGrocceryExpense;
+      const total = prevAmount - amount;
+      req.user.totalGrocceryExpense = total;
+      req.user.totalExpenseAmount = totalAmount;
+    } else if (category == "Rent") {
+      const prevAmount = req.user.totalRentExpense;
+      const total = prevAmount - amount;
+      req.user.totalRentExpense = total;
+      req.user.totalExpenseAmount = totalAmount;
+    }
+
+    await req.user.save({ session });
+
+    // Use session when deleting the expense
+    await Expense.deleteOne({ _id: expenseId }).session(session);
+
+    // Remove the reference from the user's expenses array
+    await req.user.updateOne({ $pull: { expenses: expenseId } }).session(session);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.send({ message: "success" });
+  } catch (error) {
+    console.error(error.message);
+    await session.abortTransaction();
+    session.endSession();
+    console.log(error.message);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+
 
 //m-put =>update-expense/:expenseId
 /*
@@ -390,15 +444,14 @@ const updateExpense = async (req, res) => {
 
   try {
     const expenseId = req.params.expenseId;
-    console.log({ expenseId });
     const updatedData = req.body;
-    const { amount: newAmount } = req.body; //7
-    const expense = await Expense.findById(expenseId);
-    const prevAmount = expense.amount; //say 5
-    const difference = +newAmount - prevAmount; //it will be used in category total
-
+    const { amount: newAmount } = req.body;
+    const expense = await Expense.findById(expenseId).session(session);
+    const prevAmount = expense.amount;
+    const difference = +newAmount - prevAmount;
     const updatedTotal = req.user.totalExpenseAmount + +difference;
     const category = expense.category;
+
     console.log("**************************************************************************************************");
     console.log({ category });
 
@@ -413,10 +466,10 @@ const updateExpense = async (req, res) => {
       const total = prevAmount + +difference;
       req.user.totalShoppingExpense = total;
       req.user.totalExpenseAmount = updatedTotal;
-    } else if (category == "Grocery") {
-      const prevAmount = req.user.totalGroceryExpense;
+    } else if (category == "Groccery") {
+      const prevAmount = req.user.totalGrocceryExpense;
       const total = prevAmount + +difference;
-      req.user.totalGroceryExpense = total;
+      req.user.totalGrocceryExpense = total;
       req.user.totalExpenseAmount = updatedTotal;
     } else if (category == "Rent") {
       const prevAmount = req.user.totalRentExpense;
@@ -427,6 +480,7 @@ const updateExpense = async (req, res) => {
 
     await req.user.save({ session });
 
+    // Use { new: true } to get the updated document
     const updatedExpense = await Expense.findByIdAndUpdate(
       expenseId,
       updatedData,
@@ -449,5 +503,6 @@ const updateExpense = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 module.exports = { addExpense, getExpense, deleteExpense, updateExpense };

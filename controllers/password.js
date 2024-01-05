@@ -74,9 +74,12 @@ const forgotPassword = async (req, res) => {
       
     if (user && forgotPassword) {
       const resetLink = `https://expense-frontend-drab.vercel.app/password/reset-password/${requestId}`;
+      const message = `Please use the following link to reset your password:\n${resetLink}\nIf you didn't make this request, please ignore this message.`;
+    
       console.log(resetLink);
-      sendEmail(to, "resetting password", resetLink);
+      sendEmail(to, "Reset Password", message);
     }
+    
 
     console.log("password recovery email sent");
     res.send({ message: "check your email", requestId });

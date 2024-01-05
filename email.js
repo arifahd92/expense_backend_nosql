@@ -4,7 +4,7 @@ let mailTransporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: "arifahd92@gmail.com",
-    pass: "kelu icca accv osow",
+    pass: process.env.GMAIL_APP_PASSWORD,
   },
 });
 function sendEmail(to, subject, message) {

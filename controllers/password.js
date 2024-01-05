@@ -73,7 +73,7 @@ const forgotPassword = async (req, res) => {
     const requestId = forgotPassword._id;
       
     if (user && forgotPassword) {
-      const resetLink = `https://expense-g7cl.onrender.com/password/reset-password/${requestId}`;
+      const resetLink = `https://expense-frontend-drab.vercel.app/password/reset-password/${requestId}`;
       console.log(resetLink);
       sendEmail(to, "resetting password", resetLink);
     }

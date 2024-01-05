@@ -484,7 +484,7 @@ const updateExpense = async (req, res) => {
     const updatedExpense = await Expense.findByIdAndUpdate(
       expenseId,
       updatedData,
-      { new: true, session }
+      { new: true, session }//new true will return updated data in updatedExpense
     );
 
     await session.commitTransaction();

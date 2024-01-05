@@ -62,11 +62,17 @@ const buyPremium = async (req, res) => {
       userId: req.userId,
     });
     await orderInstance.save();
-
+    
+  // Update the user model with the reference to the order
+   await User.updateOne(
+    { _id: req.userId },
+    { $push: { orders: orderInstance._id } }
+  );
     if (!order) return res.status(500).send("Some error occured");
 
     res.json(order);
   } catch (error) {
+    console.log(error.message)
     res.status(500).send(error);
   }
 };
@@ -74,18 +80,18 @@ const paymentSuccess = async (req, res) => {
   try {
     const userId = req.userId;
     const { razorpayOrderId, razorpayPaymentId } = req.body;
-
+   // console.log(await User.findById(userId))
+   
     const orderCount = await Order.updateOne(
-      { orderid: razorpayOrderId },
+      { orderid: razorpayOrderId} ,
       { $set: { status: "successful" } }
     );
-
-    const userCount = await User.updateOne(
-      { id: userId },
-      { $set: { premium: true } }
+     const userCount = await User.updateOne(
+      { _id: userId },
+      { $set: { premium: true} }
     );
-
-    if (orderCount.nModified === 1 && userCount.nModified === 1) {
+console.log({orderCount:orderCount,userCount: userCount})
+    if (orderCount.modifiedCount===1&& userCount.modifiedCount === 1) {
       res.send({ message: "success" });
     } else {
       res
@@ -93,7 +99,7 @@ const paymentSuccess = async (req, res) => {
         .send({ message: "Failed to update order or user contact us" });
     }
   } catch (error) {
-    console.error("Error updating order and user:", error);
+    console.error("Error updating order and user:", error.message);
     res.status(500).send({ message: "Internal server error contact us" });
   }
 };

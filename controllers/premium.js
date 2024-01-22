@@ -11,15 +11,16 @@ const leaderboard = async (req, res, next) => {
   try {
     const users = await User.aggregate([
       {
-        $group: {
-          _id: '$_id',
-          name: { $first: '$name' },
-          totalExpenseAmount: { $first: '$totalExpenseAmount' },
-        },
+        $project:{
+           _id:1,
+           name:1,
+           totalExpenseAmount:1
+        }
       },
-      { $sort: { totalExpenseAmount: -1 } },
+      {
+        $sort:{totalExpenseAmount:-1}
+      }
     ]);
-
     res.json(users);
   } catch (err) {
     console.log('leaderboard');
@@ -40,6 +41,7 @@ const reportCard = async (req, res) => {
       {
         $match: { creator: userId },
       },
+
       {
         $group: {
           _id: "$category",
@@ -48,39 +50,14 @@ const reportCard = async (req, res) => {
         },
       },
       {
-        $sort: {
-          _id: 1, // Sort by category in ascending order
-        },
+        $sort: { total: -1 },
       },
     ]);
-
-    // Fetch the user details
-    const user = await User.findById(userId, {
-      name: 1,
-      email: 1,
-      totalExpenseAmount: 1,
-    });
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Prepare the response array
-    const arr = [
-      {
-        name: user.name,
-        email: user.email,
-        total: user.totalExpenseAmount,
-      },
-    ];
-
-    // Append expenses and category totals to the response array
-    result.forEach(categoryGroup => {
-      arr.push(...categoryGroup.expenses);
-      arr.push({ [categoryGroup._id]: categoryGroup.total });
-    });
-
-    res.send(arr);
+    
+ console.log("report card")
+ let user =req.user
+ console.log([user,result])
+    res.send([user,...result]);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Internal server error' });

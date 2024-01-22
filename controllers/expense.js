@@ -169,7 +169,7 @@ const getExpense = async (req, res) => {
       data: expenses,
       premium: premium,
       total: req.user.totalExpenseAmount,
-      totalRecords,
+      totalRecords:req.user.expenses.length,
     });
   } catch (error) {
     console.error(error.message);

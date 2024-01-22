@@ -10,7 +10,9 @@ const findId = async (req, res, next) => {
     //console.log('generated token',{ token });
    // console.log({secretKey})
     const decodeToken = jwt.verify(token, secretKey);
-    const user = await User.findById(decodeToken.id);
+    const user = await User.findById(decodeToken.id)
+   // .select('name email totalExpenseAmount totalMovieExpense totalShoppingExpense totalRentExpense totalGrocceryExpense'); 
+    console.log({user})
 
    // console.log({ decodeToken });
     req.userId = user._id;

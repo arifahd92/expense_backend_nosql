@@ -27,8 +27,8 @@ const { ForgotPassword } = require("./models/password");
 //************* */
 
 const corsOptions = {
-  origin: "*",
-  credentials: true, //access-control-allow-credentials:true
+  origin: "https://expense-g7cl.onrender.com",
+  credentials: true,
   optionSuccessStatus: 200,
 };
 
